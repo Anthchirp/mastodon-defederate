@@ -34,7 +34,7 @@ def get(url: str) -> str:
     return text
 
 def parse_markdown(source: str, url: str) -> Set[BlockDef]:
-    parse = re.compile(r'^\|\s*(?P<server>[^ |]+)\s*\|\s*(?P<mark>[^ |]+)\s*\|\s*(?P<reason>[^|]*)\|', re.MULTILINE)
+    parse = re.compile(r'^\|(?P<server>[^|]+)\|\s*(?P<mark>[^ |]+)\s*\|\s*(?P<reason>[^|]*)\|', re.MULTILINE)
     #data = get(url).split("\n")
     data = open("data", "r").read()
     blocks = set()
@@ -44,9 +44,10 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
     for line in data.split("\n"):
         definition = parse.match(line)
         if definition:
-            server, mark, reason = definition.groups()
-            if '.' not in server: continue
-            blocks.add(BlockDef(source=source, server=server, level=levels[mark], reason=reason.strip()))
+            servers, mark, reason = definition.groups()
+            for server in servers.split(","):
+                if '.' not in server: continue
+                blocks.add(BlockDef(source=source, server=server.strip(), level=levels[mark], reason=reason.strip()))
     return blocks
 
 def parse_mastodon4(server: str, url: Optional[str] = None) -> Set[BlockDef]:
@@ -88,24 +89,33 @@ def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
 
 remote_sources = [
     parse_markdown('chaos.social', 'https://raw.githubusercontent.com/chaossocial/about/07c5d774157b847a796b8b126990277ee1643b66/blocked_instances.md'),
-    parse_mastodon4('mas.to')
+    parse_mastodon4('mas.to'),
 ]
 local_definition = parse_mastodon3('mast.uxp.de')
 exceptions = {
+    "birdsite.thorlaksson.com": Blocklevel.SILENCE, # Twitter-xpost is fine
+    "shitpost.cloud": Blocklevel.SILENCE,
 }
 
 blocklist_remote: Dict[str, BlockDef] = {}
 blocklist_local: Dict[str, BlockDef] = {}
 for source in remote_sources:
    for entry in source:
+       digest = entry.digest or sha256(entry.server)
+       if digest in blocklist_remote:
+           # identify the server name if possible
+           if '*' in blocklist_remote[digest].server and '*' not in entry.server:
+               blocklist_remote[digest] = blocklist_remote[digest]._replace(server=entry.server)
+           elif '*' not in blocklist_remote[digest].server and '*' in entry.server:
+               entry = entry._replace(server=blocklist_remote[digest].server)
+           if blocklist_remote[digest].level >= entry.level:
+               continue # highest level wins, earlier entry has priority
        if '*' in entry.server and not entry.digest:
            continue  # can't block this
-       digest = entry.digest or sha256(entry.server)
-       if digest in blocklist_remote and blocklist_remote[digest].level >= entry.level:
-           continue  # highest level wins, earlier entry has priority
        blocklist_remote[digest] = entry
-for entry in exceptions:
-    pass
+for server, level in exceptions.items():
+    digest = sha256(server)
+    blocklist_remote[digest] = BlockDef(source="exception", server=server, level=level, digest=digest, reason="manual exception")
 for entry in local_definition:
     if '*' in entry.server and not entry.digest:
         continue  # can't parse this
@@ -117,13 +127,15 @@ for entry in local_definition:
 unseen = blocklist_remote.keys() - blocklist_local.keys()
 unknown = blocklist_local.keys() - blocklist_remote.keys()
 known = blocklist_local.keys() & blocklist_remote.keys()
+
 if unseen:
     print("\nThe following servers need adding to the blocklist:")
     reasons = sorted(
        "* {server.server} listed on {server.source} as {server.level.name}{dueto}".format(
        server=blocklist_remote[digest], dueto=' due to ' + blocklist_remote[digest].reason if blocklist_remote[digest].reason else '')
-       for digest in unseen if blocklist_remote[digest].source == 'chaos.social')
+       for digest in unseen if '*' not in blocklist_remote[digest].server)
     print("\n".join(reasons))
+
 if known:
     divergent = sorted(
        ("* {local.server} listed locally as {local.level.name} "
@@ -133,6 +145,7 @@ if known:
     if divergent:
       print("\nThe following servers need updating:")
       print("\n".join(divergent))
+
 if unknown:
     print("\nThe following servers are no longer listed and can be removed:")
     reasons = sorted(
@@ -140,4 +153,5 @@ if unknown:
        server=blocklist_local[digest], dueto=' due to ' + blocklist_local[digest].reason if blocklist_local[digest].reason else '')
        for digest in unknown)
     print("\n".join(reasons))
+
 print()
