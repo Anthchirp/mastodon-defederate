@@ -2,16 +2,25 @@
 
 If you are running a small Mastodon instance then you do not have the benefit
 of moderation teams that larger instances have. This means that you may see
-toots from instances that you are not interested in. If you trust some larger
-instance to do a good job in moderating what servers they connect to then this
-tool allows you to use their defederation blocklists on your installation.
+toots from instances that you are not interested in.
+
+Particularly when you use relays to discover interesting content there is a
+high probability that you will quickly discover eg. openly racist instances
+that nobody in their right mind needs or wants.
+With a personal mastodon instance it will be your job to either block
+individual users from those instances, or manually defederate (that is: block)
+the server for everyone on your instance.
+
+So if you trust some larger instance to do a good job at maintaining their
+instance block list then this tool allows you to piggyback on their work and
+use their blocklists on your instance.
 
 ## Installation
 
 You will need Python 3.6+ with `pip`.
 Then run `pip install defederate`.
 
-## Parse a public blocklist
+## Parse a public 3rd-party blocklist
 
 You will need to specify the Mastodon server version (3 or 4):
 
