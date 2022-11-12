@@ -1,10 +1,12 @@
-import enum
-import json
-import urllib.request
-import re
 import collections
-from typing import Set, NamedTuple, Optional, Dict
+import enum
 import hashlib
+import json
+import re
+import urllib.request
+from typing import Dict, NamedTuple, Optional, Set
+
+OFFLINE = True
 
 
 def sha256(text: str) -> str:
@@ -42,8 +44,11 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
         r"^\|(?P<server>[^|]+)\|\s*(?P<mark>[^ |]+)\s*\|\s*(?P<reason>[^|]*)\|",
         re.MULTILINE,
     )
-    # data = get(url).split("\n")
-    data = open("data", "r").read()
+    if OFFLINE:
+        data = open("data", "r").read()
+    else:
+        data = get(url)
+        open("data", "w").write(data)
     blocks = set()
     levels = collections.defaultdict(lambda: Blocklevel.NAMED)
     levels["\N{NO ENTRY}"] = Blocklevel.SUSPEND
@@ -68,8 +73,11 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
 
 def parse_mastodon4(server: str, url: Optional[str] = None) -> Set[BlockDef]:
     url = url or f"https://{server}/api/v1/instance/domain_blocks"
-    #    datastr = get(url)
-    datastr = open("masto", "r").read()
+    if OFFLINE:
+        datastr = open("masto", "r").read()
+    else:
+        datastr = get(url)
+        open("masto", "w").write(datastr)
     data = set()
     levels = collections.defaultdict(lambda: Blocklevel.NAMED)
     levels["suspend"] = Blocklevel.SUSPEND
@@ -89,12 +97,13 @@ def parse_mastodon4(server: str, url: Optional[str] = None) -> Set[BlockDef]:
 
 def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
     url = url or f"https://{server}/about/more"
-    results = set()
+    results: Set[BlockDef] = set()
 
-    # datastr = get(url)
-    datastr = open("mymasto", "r").read()
-    # open("mymasto", "w").write(datastr)
-    # exit()
+    if OFFLINE:
+        datastr = open("mymasto", "r").read()
+    else:
+        datastr = get(url)
+        open("mymasto", "w").write(datastr)
     start = re.split(r"<h. id='unavailable-content'>", datastr, maxsplit=1)
     if len(start) < 2:
         return results
@@ -107,31 +116,27 @@ def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
         r"<h.>Suspended servers(.*?)</table>", datastr, re.IGNORECASE | re.DOTALL
     )
     blockexpr = re.compile(
-        "<td\s*class[^>]*>\s*<span(?: title='SHA-256: (?P<hash>[a-fA-F0-9]*)')?[^>]*>(?P<server>[^<]*)</span>\s*</td>\s*<td[^>]*>(?P<reason>[^<]*)</td>(?P<optional>asdf)?",
+        r"<td\s*class[^>]*>\s*<span(?: title='SHA-256: (?P<hash>[a-fA-F0-9]*)')?[^>]*>"
+        r"(?P<server>[^<]*)</span>\s*</td>\s*<td[^>]*>(?P<reason>[^<]*)</td>(?P<optional>asdf)?",
         re.IGNORECASE | re.DOTALL,
     )
 
-    for entry in blockexpr.finditer(limited.group(1)):
-        results.add(
-            BlockDef(
-                source=server,
-                server=entry["server"],
-                digest=entry["hash"],
-                level=Blocklevel.SILENCE,
-                reason=entry["reason"].strip(),
+    def parse_and_add(result_iterator, at_level):
+        for entry in result_iterator:
+            results.add(
+                BlockDef(
+                    source=server,
+                    server=entry["server"],
+                    digest=entry["hash"],
+                    level=at_level,
+                    reason=entry["reason"].strip(),
+                )
             )
-        )
 
-    for entry in blockexpr.finditer(suspended.group(1)):
-        results.add(
-            BlockDef(
-                source=server,
-                server=entry["server"],
-                digest=entry["hash"],
-                level=Blocklevel.SUSPEND,
-                reason=entry["reason"].strip(),
-            )
-        )
+    if limited:
+        parse_and_add(blockexpr.finditer(limited.group(1)), Blocklevel.SILENCE)
+    if suspended:
+        parse_and_add(blockexpr.finditer(suspended.group(1)), Blocklevel.SUSPEND)
 
     return results
 
