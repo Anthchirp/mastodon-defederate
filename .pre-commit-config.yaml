@@ -48,3 +48,4 @@ repos:
   hooks:
   - id: mypy
     files: '.*\.py$'
+    additional_dependencies: ['types-requests==2.26.0']

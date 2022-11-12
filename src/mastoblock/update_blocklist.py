@@ -16,7 +16,7 @@ def sha256(text: str) -> str:
 
 
 class Blocklevel(enum.IntEnum):
-    NAMED = enum.auto()
+    NONE = enum.auto()
     SILENCE = enum.auto()
     SUSPEND = enum.auto()
 
@@ -27,9 +27,6 @@ class BlockDef(NamedTuple):
     level: Blocklevel
     reason: str
     digest: Optional[str] = None
-
-    def with_digest(self):
-        return True  # self.digest = "ohai"
 
 
 def get(url: str) -> str:
@@ -50,7 +47,7 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
         data = get(url)
         open("data", "w").write(data)
     blocks = set()
-    levels = collections.defaultdict(lambda: Blocklevel.NAMED)
+    levels = collections.defaultdict(lambda: Blocklevel.NONE)
     levels["\N{NO ENTRY}"] = Blocklevel.SUSPEND
     levels["\N{SPEAKER WITH CANCELLATION STROKE}"] = Blocklevel.SILENCE
     for line in data.split("\n"):
@@ -79,7 +76,7 @@ def parse_mastodon4(server: str, url: Optional[str] = None) -> Set[BlockDef]:
         datastr = get(url)
         open("masto", "w").write(datastr)
     data = set()
-    levels = collections.defaultdict(lambda: Blocklevel.NAMED)
+    levels = collections.defaultdict(lambda: Blocklevel.NONE)
     levels["suspend"] = Blocklevel.SUSPEND
     levels["silence"] = Blocklevel.SILENCE
     for entry in json.loads(datastr):
