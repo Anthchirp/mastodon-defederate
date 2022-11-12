@@ -1,24 +1,10 @@
 import re
-import typing
 import urllib.parse
 
 import requests
 
-from .update_blocklist import Blocklevel
-
-
-class BlockSubmission(typing.NamedTuple):
-    domain: str
-    severity: Blocklevel
-    reject_media: bool = False
-    reject_reports: bool = False
-    obfuscate: bool = False
-    private_comment: str = ""
-    public_comment: str = ""
-
-
-class CannotScrapePage(RuntimeError):
-    pass
+from .const import BlockLevel, BlockSubmission
+from .errors import CannotScrapePage
 
 
 def cookie_decode(input: str) -> str:
@@ -70,9 +56,9 @@ class Mastodon3Web:
             "domain_block[public_comment]": block.public_comment,
             "button": "",
         }
-        if block.severity is Blocklevel.SUSPEND:
+        if block.severity is BlockLevel.SUSPEND:
             payload["domain_block[severity]"] = "suspend"
-        elif block.severity is Blocklevel.SILENCE:
+        elif block.severity is BlockLevel.SILENCE:
             payload["domain_block[severity]"] = "silence"
         else:
             payload["domain_block[severity]"] = "noop"
@@ -99,7 +85,7 @@ mw = Mastodon3Web(
 mw.add(
     BlockSubmission(
         "beefyboys.club",
-        severity=Blocklevel.SUSPEND,
+        severity=BlockLevel.SUSPEND,
         public_comment="test suspension :)",
     )
 )

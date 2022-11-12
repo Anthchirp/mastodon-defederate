@@ -1,0 +1,2 @@
+class CannotScrapePage(RuntimeError):
+    pass

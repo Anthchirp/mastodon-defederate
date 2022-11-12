@@ -1,10 +1,11 @@
 import collections
-import enum
 import hashlib
 import json
 import re
 import urllib.request
-from typing import Dict, NamedTuple, Optional, Set
+from typing import Dict, Optional, Set
+
+from .const import BlockDef, BlockLevel
 
 OFFLINE = True
 
@@ -13,20 +14,6 @@ def sha256(text: str) -> str:
     m = hashlib.sha256()
     m.update(text.encode("utf8"))
     return m.hexdigest()
-
-
-class Blocklevel(enum.IntEnum):
-    NONE = enum.auto()
-    SILENCE = enum.auto()
-    SUSPEND = enum.auto()
-
-
-class BlockDef(NamedTuple):
-    source: str
-    server: str
-    level: Blocklevel
-    reason: str
-    digest: Optional[str] = None
 
 
 def get(url: str) -> str:
@@ -42,14 +29,14 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
         re.MULTILINE,
     )
     if OFFLINE:
-        data = open("data", "r").read()
+        data = open("data").read()
     else:
         data = get(url)
         open("data", "w").write(data)
     blocks = set()
-    levels = collections.defaultdict(lambda: Blocklevel.NONE)
-    levels["\N{NO ENTRY}"] = Blocklevel.SUSPEND
-    levels["\N{SPEAKER WITH CANCELLATION STROKE}"] = Blocklevel.SILENCE
+    levels = collections.defaultdict(lambda: BlockLevel.NONE)
+    levels["\N{NO ENTRY}"] = BlockLevel.SUSPEND
+    levels["\N{SPEAKER WITH CANCELLATION STROKE}"] = BlockLevel.SILENCE
     for line in data.split("\n"):
         definition = parse.match(line)
         if definition:
@@ -71,14 +58,14 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
 def parse_mastodon4(server: str, url: Optional[str] = None) -> Set[BlockDef]:
     url = url or f"https://{server}/api/v1/instance/domain_blocks"
     if OFFLINE:
-        datastr = open("masto", "r").read()
+        datastr = open("masto").read()
     else:
         datastr = get(url)
         open("masto", "w").write(datastr)
     data = set()
-    levels = collections.defaultdict(lambda: Blocklevel.NONE)
-    levels["suspend"] = Blocklevel.SUSPEND
-    levels["silence"] = Blocklevel.SILENCE
+    levels = collections.defaultdict(lambda: BlockLevel.NONE)
+    levels["suspend"] = BlockLevel.SUSPEND
+    levels["silence"] = BlockLevel.SILENCE
     for entry in json.loads(datastr):
         data.add(
             BlockDef(
@@ -97,7 +84,7 @@ def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
     results: Set[BlockDef] = set()
 
     if OFFLINE:
-        datastr = open("mymasto", "r").read()
+        datastr = open("mymasto").read()
     else:
         datastr = get(url)
         open("mymasto", "w").write(datastr)
@@ -131,9 +118,9 @@ def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
             )
 
     if limited:
-        parse_and_add(blockexpr.finditer(limited.group(1)), Blocklevel.SILENCE)
+        parse_and_add(blockexpr.finditer(limited.group(1)), BlockLevel.SILENCE)
     if suspended:
-        parse_and_add(blockexpr.finditer(suspended.group(1)), Blocklevel.SUSPEND)
+        parse_and_add(blockexpr.finditer(suspended.group(1)), BlockLevel.SUSPEND)
 
     return results
 
@@ -147,8 +134,8 @@ remote_sources = [
 ]
 local_definition = parse_mastodon3("mast.uxp.de")
 exceptions = {
-    "birdsite.thorlaksson.com": Blocklevel.SILENCE,  # Twitter-xpost is fine
-    "shitpost.cloud": Blocklevel.SILENCE,
+    "birdsite.thorlaksson.com": BlockLevel.SILENCE,  # Twitter-xpost is fine
+    "shitpost.cloud": BlockLevel.SILENCE,
 }
 
 blocklist_remote: Dict[str, BlockDef] = {}

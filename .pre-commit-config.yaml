@@ -11,6 +11,26 @@ repos:
     args: ['--maxkb=200']
   - id: check-yaml
 
+# Automatically fix old Python motifs
+- repo: https://github.com/asottile/pyupgrade
+  rev: v2.31.0
+  hooks:
+  - id: pyupgrade
+    args:
+      - --py36-plus
+
+# Automatically fix some flakiness
+- repo: https://github.com/PyCQA/autoflake
+  rev: v1.4
+  hooks:
+    - id: autoflake
+      args:
+        - --in-place
+        - --remove-all-unused-imports
+        - --expand-star-imports
+        - --remove-duplicate-keys
+        - --remove-unused-variables
+
 # Automatically sort imports
 - repo: https://github.com/PyCQA/isort
   rev: 5.10.1
