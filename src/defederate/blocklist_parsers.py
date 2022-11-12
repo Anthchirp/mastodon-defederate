@@ -1,13 +1,14 @@
 import collections
 import hashlib
 import json
+import os.path
 import re
 import urllib.request
 from typing import Dict, Optional, Set
 
 from .const import BlockDef, BlockLevel
 
-OFFLINE = True
+OFFLINE = os.path.exists("mymasto")
 
 
 def sha256(text: str) -> str:
@@ -32,7 +33,6 @@ def parse_markdown(source: str, url: str) -> Set[BlockDef]:
         data = open("data").read()
     else:
         data = get(url)
-        open("data", "w").write(data)
     blocks = set()
     levels = collections.defaultdict(lambda: BlockLevel.NONE)
     levels["\N{NO ENTRY}"] = BlockLevel.SUSPEND
@@ -61,7 +61,6 @@ def parse_mastodon4(server: str, url: Optional[str] = None) -> Set[BlockDef]:
         datastr = open("masto").read()
     else:
         datastr = get(url)
-        open("masto", "w").write(datastr)
     data = set()
     levels = collections.defaultdict(lambda: BlockLevel.NONE)
     levels["suspend"] = BlockLevel.SUSPEND
@@ -87,7 +86,6 @@ def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
         datastr = open("mymasto").read()
     else:
         datastr = get(url)
-        open("mymasto", "w").write(datastr)
     start = re.split(r"<h. id='unavailable-content'>", datastr, maxsplit=1)
     if len(start) < 2:
         return results
@@ -125,102 +123,103 @@ def parse_mastodon3(server: str, url: Optional[str] = None) -> Set[BlockDef]:
     return results
 
 
-remote_sources = [
-    parse_markdown(
-        "chaos.social",
-        "https://raw.githubusercontent.com/chaossocial/about/07c5d774157b847a796b8b126990277ee1643b66/blocked_instances.md",
-    ),
-    parse_mastodon4("mas.to"),
-]
-local_definition = parse_mastodon3("mast.uxp.de")
-exceptions = {
-    "birdsite.thorlaksson.com": BlockLevel.SILENCE,  # Twitter-xpost is fine
-    "shitpost.cloud": BlockLevel.SILENCE,
-}
+if __name__ == "__main__":
+    remote_sources = [
+        parse_markdown(
+            "chaos.social",
+            "https://raw.githubusercontent.com/chaossocial/about/07c5d774157b847a796b8b126990277ee1643b66/blocked_instances.md",
+        ),
+        parse_mastodon4("mas.to"),
+    ]
+    local_definition = parse_mastodon3("mast.uxp.de")
+    exceptions = {
+        "birdsite.thorlaksson.com": BlockLevel.SILENCE,  # Twitter-xpost is fine
+        "shitpost.cloud": BlockLevel.SILENCE,
+    }
 
-blocklist_remote: Dict[str, BlockDef] = {}
-blocklist_local: Dict[str, BlockDef] = {}
-for source in remote_sources:
-    for entry in source:
-        digest = entry.digest or sha256(entry.server)
-        if digest in blocklist_remote:
-            # identify the server name if possible
-            if "*" in blocklist_remote[digest].server and "*" not in entry.server:
-                blocklist_remote[digest] = blocklist_remote[digest]._replace(
-                    server=entry.server
-                )
-            elif "*" not in blocklist_remote[digest].server and "*" in entry.server:
-                entry = entry._replace(server=blocklist_remote[digest].server)
-            if blocklist_remote[digest].level >= entry.level:
-                continue  # highest level wins, earlier entry has priority
+    blocklist_remote: Dict[str, BlockDef] = {}
+    blocklist_local: Dict[str, BlockDef] = {}
+    for source in remote_sources:
+        for entry in source:
+            digest = entry.digest or sha256(entry.server)
+            if digest in blocklist_remote:
+                # identify the server name if possible
+                if "*" in blocklist_remote[digest].server and "*" not in entry.server:
+                    blocklist_remote[digest] = blocklist_remote[digest]._replace(
+                        server=entry.server
+                    )
+                elif "*" not in blocklist_remote[digest].server and "*" in entry.server:
+                    entry = entry._replace(server=blocklist_remote[digest].server)
+                if blocklist_remote[digest].level >= entry.level:
+                    continue  # highest level wins, earlier entry has priority
+            if "*" in entry.server and not entry.digest:
+                continue  # can't block this
+            blocklist_remote[digest] = entry
+    for server, level in exceptions.items():
+        digest = sha256(server)
+        blocklist_remote[digest] = BlockDef(
+            source="exception",
+            server=server,
+            level=level,
+            digest=digest,
+            reason="manual exception",
+        )
+    for entry in local_definition:
         if "*" in entry.server and not entry.digest:
-            continue  # can't block this
-        blocklist_remote[digest] = entry
-for server, level in exceptions.items():
-    digest = sha256(server)
-    blocklist_remote[digest] = BlockDef(
-        source="exception",
-        server=server,
-        level=level,
-        digest=digest,
-        reason="manual exception",
-    )
-for entry in local_definition:
-    if "*" in entry.server and not entry.digest:
-        continue  # can't parse this
-    digest = entry.digest or sha256(entry.server)
-    if digest in blocklist_local and blocklist_local[digest].level <= entry.level:
-        continue  # highest level wins
-    blocklist_local[digest] = entry
+            continue  # can't parse this
+        digest = entry.digest or sha256(entry.server)
+        if digest in blocklist_local and blocklist_local[digest].level <= entry.level:
+            continue  # highest level wins
+        blocklist_local[digest] = entry
 
-unseen = blocklist_remote.keys() - blocklist_local.keys()
-unknown = blocklist_local.keys() - blocklist_remote.keys()
-known = blocklist_local.keys() & blocklist_remote.keys()
+    unseen = blocklist_remote.keys() - blocklist_local.keys()
+    unknown = blocklist_local.keys() - blocklist_remote.keys()
+    known = blocklist_local.keys() & blocklist_remote.keys()
 
-if unseen:
-    print("\nThe following servers need adding to the blocklist:")
-    reasons = sorted(
-        "* {server.server} listed on {server.source} as {server.level.name}{dueto}".format(
-            server=blocklist_remote[digest],
-            dueto=" due to " + blocklist_remote[digest].reason
-            if blocklist_remote[digest].reason
-            else "",
+    if unseen:
+        print("\nThe following servers need adding to the blocklist:")
+        reasons = sorted(
+            "* {server.server} listed on {server.source} as {server.level.name}{dueto}".format(
+                server=blocklist_remote[digest],
+                dueto=" due to " + blocklist_remote[digest].reason
+                if blocklist_remote[digest].reason
+                else "",
+            )
+            for digest in unseen
+            if "*" not in blocklist_remote[digest].server
         )
-        for digest in unseen
-        if "*" not in blocklist_remote[digest].server
-    )
-    print("\n".join(reasons))
+        print("\n".join(reasons))
 
-if known:
-    divergent = sorted(
-        (
-            "* {local.server} listed locally as {local.level.name} "
-            "but is reported as {remote.level.name} on {remote.source}{dueto}"
-        ).format(
-            local=blocklist_local[digest],
-            remote=blocklist_remote[digest],
-            dueto=" due to " + blocklist_remote[digest].reason
-            if blocklist_remote[digest].reason
-            else "",
+    if known:
+        divergent = sorted(
+            (
+                "* {local.server} listed locally as {local.level.name} "
+                "but is reported as {remote.level.name} on {remote.source}{dueto}"
+            ).format(
+                local=blocklist_local[digest],
+                remote=blocklist_remote[digest],
+                dueto=" due to " + blocklist_remote[digest].reason
+                if blocklist_remote[digest].reason
+                else "",
+            )
+            for digest in known
+            if blocklist_local[digest].level is not blocklist_remote[digest].level
         )
-        for digest in known
-        if blocklist_local[digest].level is not blocklist_remote[digest].level
-    )
-    if divergent:
-        print("\nThe following servers need updating:")
-        print("\n".join(divergent))
+        if divergent:
+            print("\nThe following servers need updating:")
+            print("\n".join(divergent))
 
-if unknown:
-    print("\nThe following servers are no longer listed and can be removed:")
-    reasons = sorted(
-        "* {server.server} listed locally as {server.level.name}{dueto}".format(
-            server=blocklist_local[digest],
-            dueto=" due to " + blocklist_local[digest].reason
-            if blocklist_local[digest].reason
-            else "",
+    if unknown:
+        print("\nThe following servers are no longer listed and can be removed:")
+        reasons = sorted(
+            "* {server.server} listed locally as {server.level.name}{dueto}".format(
+                server=blocklist_local[digest],
+                dueto=" due to " + blocklist_local[digest].reason
+                if blocklist_local[digest].reason
+                else "",
+            )
+            for digest in unknown
         )
-        for digest in unknown
-    )
-    print("\n".join(reasons))
+        print("\n".join(reasons))
 
-print()
+    print()

@@ -1,7 +1,10 @@
 import argparse
+import functools
 import sys
+from typing import Callable, Dict, List
 
 import defederate
+import defederate.blocklist_parsers
 
 
 def main():
@@ -34,9 +37,36 @@ by running defederate <command> --help
     sys.exit(f"Unrecognized command: {args.subcommand}")
 
 
-def cli_show(args):
-    print("Show", args)
+def cli_show(cmd_args: List[str]):
+    bl_parser: Dict[str, Callable] = {
+        "3": defederate.blocklist_parsers.parse_mastodon3,
+        "4": defederate.blocklist_parsers.parse_mastodon4,
+        "markdown": functools.partial(
+            defederate.blocklist_parsers.parse_markdown, "markdown"
+        ),
+    }
+    parser = argparse.ArgumentParser(
+        description="Show active instance blocks", prog="defederate show"
+    )
+    parser.add_argument(
+        "--mastodon-version",
+        choices=sorted(bl_parser),
+        required=True,
+        help="Specify the version of Mastodon running on this server",
+    )
+    parser.add_argument("host", help="The base URL for the server")
+
+    args = parser.parse_args(cmd_args)
+    blockset = bl_parser[args.mastodon_version](args.host)
+    blocklist = sorted(
+        " {entry.level.name}: {entry.server}{due}".format(
+            entry=entry, due=f"  due to {entry.reason}" if entry.reason else ""
+        )
+        for entry in blockset
+    )
+    print(f"Current blocklist on {args.host}:")
+    print("\n".join(blocklist))
 
 
 def cli_block(args):
-    print("Block", args)
+    exit("Adding blocks is not yet supported")
