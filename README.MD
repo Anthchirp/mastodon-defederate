@@ -1,5 +1,10 @@
 # Tools for Mastodon Instance Blocklist Management
 
+If you are running a small Mastodon instance then you do not have the benefit
+of moderation teams that larger instances have. This means that you may see
+toots from instances that you are not interested in. If you trust some larger
+instance to do a good job in moderating what servers they connect to then this
+tool allows you to use their defederation blocklists on your installation.
 
 ## Installation
 
