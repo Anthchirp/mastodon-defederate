@@ -1,7 +1,7 @@
 [![PyPI release](https://img.shields.io/pypi/v/defederate)](https://pypi.org/projects/defederate)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/defederate)](https://pypi.org/projects/defederate)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-![BSD License](https://img.shields.io/pypi/l/defederate)
+[![BSD License](https://img.shields.io/pypi/l/defederate)](https://github.com/Anthchirp/mastodon-defederate/blob/main/LICENSE)
 
 # Tools for Mastodon Instance Blocklist Management
 
