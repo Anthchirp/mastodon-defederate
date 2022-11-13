@@ -1,0 +1,132 @@
+trigger:
+  branches:
+    include:
+    - '*'
+  tags:
+    include:
+    - '*'
+
+stages:
+- stage: static
+  displayName: Static Analysis
+  jobs:
+  - job: checks
+    displayName: static code analysis
+    pool:
+      vmImage: ubuntu-20.04
+    steps:
+      - task: UsePythonVersion@0.206.0
+        displayName: Set up python
+        inputs:
+          versionSpec: 3.10
+
+      - bash: |
+          python .azure-pipelines/syntax-validation.py
+        displayName: Syntax validation
+
+      - bash: |
+          pip install --disable-pip-version-check flake8
+          python .azure-pipelines/flake8-validation.py
+        displayName: Flake8 validation
+
+- stage: build
+  displayName: Build
+  dependsOn:
+  jobs:
+  - job: build
+    displayName: build package
+    pool:
+      vmImage: ubuntu-20.04
+    steps:
+      - task: UsePythonVersion@0.206.0
+        displayName: Set up python
+        inputs:
+          versionSpec: 3.10
+
+      - bash: |
+          pip install --disable-pip-version-check collective.checkdocs wheel
+        displayName: Install dependencies
+
+      - bash: |
+          set -ex
+          python setup.py sdist bdist_wheel
+          mkdir -p dist/pypi
+          shopt -s extglob
+          mv -v dist/!(pypi) dist/pypi
+          git archive HEAD | gzip > dist/repo-source.tar.gz
+          ls -laR dist
+        displayName: Build python package
+
+      - task: PublishBuildArtifacts@1.200.0
+        displayName: Store artifact
+        inputs:
+          pathToPublish: dist/
+          artifactName: package
+
+      - bash: python setup.py checkdocs
+        displayName: Check package description
+
+- stage: tests
+  displayName: Run unit tests
+  dependsOn:
+  - static
+  - build
+  jobs:
+  - job: linux
+    pool:
+      vmImage: ubuntu-20.04
+    strategy:
+      matrix:
+        python36:
+          PYTHON_VERSION: 3.6
+        python37:
+          PYTHON_VERSION: 3.7
+        python38:
+          PYTHON_VERSION: 3.8
+        python39:
+          PYTHON_VERSION: 3.9
+        python310:
+          PYTHON_VERSION: 3.10
+        python311:
+          PYTHON_VERSION: 3.11
+    steps:
+    - template: ci.yml
+
+- stage: deploy
+  displayName: Publish release
+  dependsOn:
+  - tests
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+  jobs:
+  - job: pypi
+    displayName: Publish pypi release
+    pool:
+      vmImage: ubuntu-20.04
+    steps:
+      - checkout: none
+
+      - task: UsePythonVersion@0.206.0
+        displayName: Set up python
+        inputs:
+          versionSpec: 3.10
+
+      - task: DownloadBuildArtifacts@0.206.0
+        displayName: Get pre-built package
+        inputs:
+          buildType: 'current'
+          downloadType: 'single'
+          artifactName: 'package'
+          downloadPath: '$(System.ArtifactsDirectory)'
+
+      - script: |
+          pip install --disable-pip-version-check twine
+        displayName: Install twine
+
+#     - task: TwineAuthenticate@1.208.0
+#       displayName: Set up credentials
+#       inputs:
+#         pythonUploadServiceConnection: pypi-defederate
+
+      - bash: |
+          python -m twine upload -r pypi-defederate --config-file $(PYPIRC_PATH) $(System.ArtifactsDirectory)/package/pypi/*.tar.gz $(System.ArtifactsDirectory)/package/pypi/*.whl
+        displayName: Publish package
