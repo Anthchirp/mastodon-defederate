@@ -27,10 +27,10 @@ Then run `pip install defederate`.
 
 ## Parse a public 3rd-party blocklist
 
-You will need to specify the Mastodon server version (3 or 4):
+You currently need to specify the Mastodon server version (mastodon3 or mastodon4):
 
 ```bash
-$ defederate show --mastodon-version 4 social.example.com   
+$ defederate show --mastodon-version mastodon4 social.example.com
 Current blocklist on social.example.com:
  SILENCE: badhost1.example.com
  SILENCE: badhost2.example.com
