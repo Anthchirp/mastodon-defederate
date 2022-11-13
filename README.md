@@ -1,6 +1,6 @@
-![PyPI release](https://img.shields.io/pypi/v/defederate)
-![Supported Python versions](https://img.shields.io/pypi/pyversions/defederate)
-![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
+[![PyPI release](https://img.shields.io/pypi/v/defederate)](https://pypi.org/projects/defederate)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/defederate)](https://pypi.org/projects/defederate)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ![BSD License](https://img.shields.io/pypi/l/defederate)
 
 # Tools for Mastodon Instance Blocklist Management
@@ -49,8 +49,8 @@ $ defederate show --mastodon-version markdown https://github.com/chaossocial/abo
 
 ## Notes
 
-[Concerns](https://mast.uxp.de/web/@ondra@unextro.net/109336212305901991)
-[Similar/related project](https://gitlab.comwork.io/oss/mastodon-term-services)
-[Similar/related project](https://github.com/hachyderm/hack)
-[Similar/related project](https://mastodon-tools.dingelstad.works/)
-[related Mastodon PR](https://github.com/mastodon/mastodon/pull/15664)
+* [Concerns](https://mast.uxp.de/web/@ondra@unextro.net/109336212305901991)
+* [Similar/related project](https://gitlab.comwork.io/oss/mastodon-term-services)
+* [Similar/related project](https://github.com/hachyderm/hack)
+* [Similar/related project](https://mastodon-tools.dingelstad.works/)
+* [related Mastodon PR](https://github.com/mastodon/mastodon/pull/15664)
