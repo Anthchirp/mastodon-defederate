@@ -1,10 +1,18 @@
 import argparse
 import sys
+import urllib.parse
 from typing import List
 
 import defederate
 import defederate.blocklist_parsers
 import defederate.plugin
+
+
+def _sanitize_address(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme and not parsed.netloc:
+        parsed = urllib.parse.urlparse("https://" + url)
+    return parsed.geturl()
 
 
 def main():
@@ -47,12 +55,30 @@ def cli_show(cmd_args: List[str]):
     parser.add_argument(
         "--mastodon-version",
         choices=known_server_types,
-        required=True,
         help="Specify the version of Mastodon running on this server",
     )
-    parser.add_argument("host", help="The base URL for the server")
+    parser.add_argument(
+        "host", help="The base URL for the server", type=_sanitize_address
+    )
 
     args = parser.parse_args(cmd_args)
+    if not args.mastodon_version:
+        accepting_plugins = sorted(
+            server_type
+            for server_type in known_server_types
+            if defederate.plugin.get_server_plugin(server_type).understands(args.host)
+        )
+        if not accepting_plugins:
+            exit(
+                "Could not identify the server type. Please specify --mastodon-version"
+            )
+        if len(accepting_plugins) > 1:
+            exit(
+                f"Could not identify the server type. Please specify --mastodon-version with one of {accepting_plugins}"
+            )
+        args.mastodon_version = accepting_plugins[0]
+        print(f"Autodetected server type {args.mastodon_version}")
+
     server = defederate.plugin.get_server_plugin(args.mastodon_version)(args.host)
     blockset = server.get_public_blocklist()
     blocklist = sorted(

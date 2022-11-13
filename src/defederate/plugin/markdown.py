@@ -1,4 +1,5 @@
 import re
+import urllib.parse
 from typing import Set
 
 import requests
@@ -16,6 +17,11 @@ _table_parser = re.compile(
 class MarkdownServer(ServerPlugin):
     def __init__(self, server: str):
         self._server = server
+
+    @staticmethod
+    def understands(url: str) -> bool:
+        parsed = urllib.parse.urlparse(url)
+        return parsed.path[-3:].upper() == ".MD"
 
     def get_public_blocklist(self) -> Set[BlockDef]:
         url = self._server

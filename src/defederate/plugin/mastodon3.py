@@ -1,8 +1,10 @@
 import re
+import urllib.parse
 from typing import Set
 
 import requests
 
+from defederate.activitypub import get_nodeinfo
 from defederate.const import BlockDef, BlockLevel
 from defederate.errors import CannotScrapePage
 from defederate.plugin import ServerPlugin
@@ -10,20 +12,32 @@ from defederate.plugin import ServerPlugin
 
 class Mastodon3Server(ServerPlugin):
     def __init__(self, server: str):
-        self._server = server
+        self._server = urllib.parse.urlparse(server)
+
+    @staticmethod
+    def understands(url: str) -> bool:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.path not in ("", "/"):
+            return False
+        nodeinfo = get_nodeinfo(url)
+        if nodeinfo.get("software", {}).get("name") != "mastodon":
+            return False
+        return nodeinfo["software"].get("version", "").startswith("3.")
 
     def get_public_blocklist(self) -> Set[BlockDef]:
-        url = f"https://{self._server}/about/more"
+        url = self._server._replace(
+            path="/about/more", params="", query="", fragment=""
+        ).geturl()
         response = requests.get(url)
         if response.status_code != 200:
             raise CannotScrapePage(
-                f"Server at {url} returned {response.status_code}: {response.reason}"
+                f"Server at {self._server.netloc} returned {response.status_code}: {response.reason}"
             )
 
         start = re.split(r"<h. id='unavailable-content'>", response.text, maxsplit=1)
         if len(start) < 2:
             raise CannotScrapePage(
-                f"Server at {self._server} returned page in unexpected format"
+                f"Server at {self._server.netloc} returned page in unexpected format"
             )
         server_list = start[1]
         results = set()
@@ -46,7 +60,7 @@ class Mastodon3Server(ServerPlugin):
             for entry in result_iterator:
                 results.add(
                     BlockDef(
-                        source=self._server,
+                        source=self._server.netloc,
                         server=entry["server"],
                         digest=entry["hash"],
                         level=at_level,

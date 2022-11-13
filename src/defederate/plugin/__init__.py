@@ -14,6 +14,10 @@ class ServerPlugin(ABC):
     def get_public_blocklist(self) -> Set[BlockDef]:
         raise NotImplementedError("This function is not supported by this server type")
 
+    @staticmethod
+    def understands(url: str) -> bool:
+        return False
+
 
 def list_server_plugins() -> List[EntryPoint]:
     try:

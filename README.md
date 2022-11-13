@@ -27,10 +27,8 @@ Then run `pip install defederate`.
 
 ## Parse a public 3rd-party blocklist
 
-You currently need to specify the Mastodon server version (mastodon3 or mastodon4):
-
 ```bash
-$ defederate show --mastodon-version mastodon4 social.example.com
+$ defederate show social.example.com
 Current blocklist on social.example.com:
  SILENCE: badhost1.example.com
  SILENCE: badhost2.example.com
@@ -44,7 +42,7 @@ The server you are requesting the blocklist from must allow public access.
 
 This can also parse blocklists in Markdown format, for example the [blocklist](https://github.com/chaossocial/about/raw/master/blocked_instances.md) used by [chaos.social](https://chaos.social):
 ```bash
-$ defederate show --mastodon-version markdown https://github.com/chaossocial/about/raw/master/blocked_instances.md
+$ defederate show https://github.com/chaossocial/about/raw/master/blocked_instances.md
 ```
 
 ## Notes
