@@ -1,0 +1,19 @@
+name: Static Analysis
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Syntax validation
+        run: |
+          python .azure-pipelines/syntax-validation.py
+      - name: Flake8 validation
+        run: |
+          pip install --disable-pip-version-check flake8
+          python .azure-pipelines/flake8-validation.py
