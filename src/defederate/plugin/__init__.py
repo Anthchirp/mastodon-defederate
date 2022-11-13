@@ -1,5 +1,6 @@
+import functools
 from abc import ABC, abstractmethod
-from typing import List, Set, Type
+from typing import Set, Tuple, Type
 
 from importlib_metadata import EntryPoint, entry_points
 
@@ -19,19 +20,18 @@ class ServerPlugin(ABC):
         return False
 
 
-def list_server_plugins() -> List[EntryPoint]:
-    try:
-        return entry_points()["defederate.plugin.server"]
-    except KeyError:
+@functools.lru_cache()
+def list_server_plugins() -> Tuple[EntryPoint]:
+    registered_plugins = entry_points(group="defederate.plugin.server")
+    if not registered_plugins:
         raise RuntimeError(
             "Entry points missing. Defederation package is not installed correctly."
         )
+    return registered_plugins
 
 
 def get_server_plugin(name: str) -> Type[ServerPlugin]:
-    plugin = [
-        ep for ep in entry_points()["defederate.plugin.server"] if ep.name == name
-    ]
+    plugin = [ep for ep in list_server_plugins() if ep.name == name]
     if not plugin:
         raise KeyError(f"Could not find plugin {name}")
     if len(plugin) > 1:
