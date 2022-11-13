@@ -41,3 +41,11 @@ This can also parse blocklists in Markdown format, for example the [blocklist](h
 ```bash
 $ defederate show --mastodon-version markdown https://github.com/chaossocial/about/raw/master/blocked_instances.md
 ```
+
+## Notes
+
+[Concerns](https://mast.uxp.de/web/@ondra@unextro.net/109336212305901991)
+[Similar/related project](https://gitlab.comwork.io/oss/mastodon-term-services)
+[Similar/related project](https://github.com/hachyderm/hack)
+[Similar/related project](https://mastodon-tools.dingelstad.works/)
+[related Mastodon PR](https://github.com/mastodon/mastodon/pull/15664)
