@@ -1,3 +1,8 @@
+![PyPI release](https://img.shields.io/pypi/v/defederate)
+![Supported Python versions](https://img.shields.io/pypi/pyversions/defederate)
+![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
+![BSD License](https://img.shields.io/pypi/l/defederate)
+
 # Tools for Mastodon Instance Blocklist Management
 
 If you are running a small Mastodon instance then you do not have the benefit
