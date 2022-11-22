@@ -12,7 +12,7 @@ toots from instances that you are not interested in.
 Particularly when you use relays to discover interesting content there is a
 high probability that you will quickly discover eg. openly racist instances
 that nobody in their right mind needs or wants.
-With a personal mastodon instance it will be your job to either block
+With a personal Mastodon instance it will be your job to either block
 individual users from those instances, or manually defederate (that is: block)
 the server for everyone on your instance.
 
